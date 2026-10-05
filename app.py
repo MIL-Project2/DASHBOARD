@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import streamlit.components.v1 as components
 import os
 from datetime import datetime, date, time, timezone, timedelta
@@ -54,9 +55,9 @@ st.markdown("""
         background-color: #ffffff;
         border: 1.5px solid #cbd5e1;
         border-radius: 18px;
-        padding: 22px 24px;
+        padding: 20px 22px;
         box-shadow: 0 6px 20px rgba(0, 0, 0, 0.05);
-        height: 200px;
+        height: 205px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -75,11 +76,11 @@ st.markdown("""
     }
     
     .metric-main-val {
-        font-size: 54px;
+        font-size: 52px;
         font-weight: 900;
         color: #0f172a;
         line-height: 1.0;
-        margin: 6px 0 2px 0;
+        margin: 4px 0 2px 0;
     }
     
     .metric-label-muted {
@@ -91,7 +92,7 @@ st.markdown("""
     }
     
     .metric-sub-unit {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 700;
         color: #64748b;
     }
@@ -106,7 +107,7 @@ st.markdown("""
         align-items: center;
         justify-content: center;
         gap: 18px;
-        height: 200px;
+        height: 205px;
         box-shadow: 0 6px 24px rgba(22, 163, 74, 0.4);
         animation: comfortPulse 3s infinite ease-in-out;
         box-sizing: border-box;
@@ -344,19 +345,45 @@ cur_power = df_live['predictive_hvac_power_kW'].iloc[-1]
 is_cooling = cur_power > 0.05
 hvac_on = cur_power > 0.0
 
-# --- CUMULATIVE ENERGY RECALCULATION (RESET STRICTLY AT 08:00 AM) ---
-# Calculate 5-minute interval energy: kWh = kW * (5 / 60)
+# --- PREDICTION ERROR & REALISATION VALUE CALCULATION ---
+# Instantaneous error value at current inspection moment:
+instant_realised = df_live['occupancy_actual_15min_later'].iloc[-1] if 'occupancy_actual_15min_later' in df_live.columns and pd.notna(df_live['occupancy_actual_15min_later'].iloc[-1]) else None
+if instant_realised is not None:
+    instant_error_val = int(pred_occ - instant_realised)
+    if instant_error_val > 0:
+        error_badge = f"<span style='color:#ef4444;'>+{instant_error_val} (Over)</span>"
+    elif instant_error_val < 0:
+        error_badge = f"<span style='color:#a855f7;'>{instant_error_val} (Under)</span>"
+    else:
+        error_badge = "<span style='color:#16a34a;'>0 (Exact)</span>"
+else:
+    instant_error_val = 0
+    error_badge = "<span style='color:#94a3b8;'>--</span>"
+
+# Cumulative day error metrics since 08:00 AM
+df_day_since_8 = df_live[df_live.index >= t_start].copy()
+if not df_day_since_8.empty and 'occupancy_actual_15min_later' in df_day_since_8.columns:
+    eval_df = df_day_since_8.dropna(subset=['occupancy_forecast_15min', 'occupancy_actual_15min_later'])
+    if len(eval_df) > 0:
+        err_series = eval_df['occupancy_forecast_15min'] - eval_df['occupancy_actual_15min_later']
+        mae_today = float(np.mean(np.abs(err_series)))
+        rmse_today = float(np.sqrt(np.mean(err_series**2)))
+        bias_today = float(np.mean(err_series))
+    else:
+        mae_today, rmse_today, bias_today = 0.0, 0.0, 0.0
+else:
+    mae_today, rmse_today, bias_today = 0.0, 0.0, 0.0
+
+# --- CUMULATIVE ENERGY RECALCULATION (RESET AT 08:00 AM) ---
 df_day['pred_energy_step'] = df_day['predictive_hvac_power_kW'] * (5.0 / 60.0)
 df_day['sched_energy_step'] = df_day['scheduled_hvac_power_kW'] * (5.0 / 60.0)
 
-# Calculate cumulative profile from 08:00 AM forward
 day_work_mask = (df_day.index >= t_start)
 df_day['pred_energy_cum_day'] = 0.0
 df_day['sched_energy_cum_day'] = 0.0
 df_day.loc[day_work_mask, 'pred_energy_cum_day'] = df_day.loc[day_work_mask, 'pred_energy_step'].cumsum()
 df_day.loc[day_work_mask, 'sched_energy_cum_day'] = df_day.loc[day_work_mask, 'sched_energy_step'].cumsum()
 
-# Re-slice df_live with cumulative energy columns
 df_live = df_day[df_day.index.time <= active_time]
 if df_live.empty:
     df_live = df_day.iloc[:1]
@@ -375,7 +402,7 @@ pct_saved = (energy_saved / sched_energy_today * 100) if sched_energy_today > 0 
 # --- 6. TOP 4 KPI CARDS ---
 kpi_col1, kpi_col2, kpi_col3, kpi_col4 = st.columns([1.1, 1.3, 1.1, 1.5])
 
-# Box 1: Occupancy
+# Box 1: Occupancy with Distinct Error Metrics Display
 with kpi_col1:
     arrow = "↑" if pred_occ >= cur_occ else "↓"
     arrow_color = "#dc2626" if pred_occ >= cur_occ else "#16a34a"
@@ -388,14 +415,17 @@ with kpi_col1:
                 <div class="metric-main-val">{cur_occ}</div>
                 <div class="metric-sub-unit">people</div>
             </div>
-            <div style="border-left: 2px solid #e2e8f0; height: 68px;"></div>
+            <div style="border-left: 2px solid #e2e8f0; height: 62px;"></div>
             <div>
-                <div class="metric-label-muted">Predicted <span style="font-size: 13px;">+15m</span></div>
-                <div class="metric-main-val">{pred_occ} <span style="font-size: 32px; color: {arrow_color};">{arrow}</span></div>
+                <div class="metric-label-muted">Predicted <span style="font-size: 12px;">+15m</span></div>
+                <div class="metric-main-val">{pred_occ} <span style="font-size: 28px; color: {arrow_color};">{arrow}</span></div>
                 <div class="metric-sub-unit">people</div>
             </div>
         </div>
-        <div style="height: 4px;"></div>
+        <div style="border-top: 1.5px solid #f1f5f9; padding-top: 6px; font-size: 12.5px; font-weight: 700; color: #475569; display: flex; justify-content: space-between;">
+            <span>Current Error: <b>{error_badge}</b></span>
+            <span>MAE: <b>{mae_today:.2f}</b> | RMSE: <b>{rmse_today:.2f}</b></span>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -441,7 +471,7 @@ with kpi_col3:
     </div>
     """, unsafe_allow_html=True)
 
-# Box 4: Energy Usage (Cumulative since 08:00 AM)
+# Box 4: Cumulative Energy Usage (Today from 08:00 AM)
 with kpi_col4:
     st.markdown(f"""
     <div class="metric-card-box">
@@ -458,7 +488,7 @@ with kpi_col4:
         </div>
         <div style="display: flex; align-items: center; gap: 8px; color: #15803d; font-size: 18px; font-weight: 900; border-top: 1.5px solid #f1f5f9; padding-top: 8px;">
             <span>🍃</span>
-            <span>{energy_saved:.2f} kWh ({pct_saved:.1f}%) Cumulative Saving</span>
+            <span>{energy_saved:.2f} kWh ({pct_saved:.1f}%) Cumulative Saved</span>
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -468,22 +498,17 @@ st.markdown("<div style='margin-bottom: 22px;'></div>", unsafe_allow_html=True)
 # --- 7. MID-ROW: CUMULATIVE ENERGY GRAPH & TEMPERATURE TREND ---
 chart_col1, chart_col2 = st.columns(2)
 
-# Chart 1: Cumulative Energy Consumption
 with chart_col1:
     st.markdown("<div class='card-top-title' style='margin-bottom: 12px;'>📊 Cumulative Energy Consumption (kWh, Since 08:00)</div>", unsafe_allow_html=True)
     fig_energy = go.Figure()
     
-    # Filter working hours for plotting
     df_live_plot = df_live[df_live.index >= t_start]
     
-    # Scheduled Baseline Cumulative (Orange dashed)
     fig_energy.add_trace(go.Scatter(
         x=df_live_plot.index, y=df_live_plot['sched_energy_cum_day'],
         mode='lines', name='Scheduled Baseline (Cum. kWh)',
         line=dict(color='#ea580c', width=3.5, dash='dash')
     ))
-    
-    # Predictive Actual Cumulative (Blue solid with fill)
     fig_energy.add_trace(go.Scatter(
         x=df_live_plot.index, y=df_live_plot['pred_energy_cum_day'],
         mode='lines', name='Predictive HVAC (Cum. kWh)',
@@ -493,7 +518,6 @@ with chart_col1:
     
     fig_energy.add_vline(x=datetime.combine(selected_date, active_time), line_width=2.5, line_color="#ef4444")
     
-    # Calculate tight y-axis range based on max energy
     day_work_window = df_day[(df_day.index >= t_start) & (df_day.index <= t_end)]
     max_cum_e = day_work_window['sched_energy_cum_day'].max() if not day_work_window.empty else 5.0
     y_energy_upper = max(2.0, round(float(max_cum_e) + 0.5, 1))
@@ -516,31 +540,23 @@ with chart_col1:
     )
     st.plotly_chart(fig_energy, use_container_width=True)
 
-# Chart 2: High-Visibility Temperature Trend
 with chart_col2:
     st.markdown("<div class='card-top-title' style='margin-bottom: 12px;'>🌡️ Temperature Trend (Clear Movement Scale)</div>", unsafe_allow_html=True)
     fig_temp = go.Figure()
     
-    # Comfort Band Shading (22.8 - 25.8°C)
     fig_temp.add_hrect(
         y0=22.8, y1=25.8, line_width=0, fillcolor="#22c55e", opacity=0.18,
         annotation_text="Comfort Range (22.8 - 25.8°C)", annotation_position="top right", annotation_font_size=13
     )
-    
-    # Setpoint (24.0°C)
     fig_temp.add_hline(
         y=24.0, line_dash="dash", line_color="#10b981", line_width=2.5, 
         annotation_text="Setpoint (24°C)", annotation_position="top left", annotation_font_size=13
     )
-    
-    # Zone Temperature
     fig_temp.add_trace(go.Scatter(
         x=df_live.index, y=df_live['predictive_room_temperature_C'],
         mode='lines', name='Zone Temperature',
         line=dict(color='#0284c7', width=4)
     ))
-    
-    # Outdoor Temperature on secondary y-axis to prevent squashing zone temperature
     fig_temp.add_trace(go.Scatter(
         x=df_live.index, y=df_live['outdoor_temperature_C'],
         mode='lines', name='Outdoor Temp (Ref)',
@@ -550,7 +566,6 @@ with chart_col2:
     
     fig_temp.add_vline(x=datetime.combine(selected_date, active_time), line_width=2.5, line_color="#ef4444")
 
-    # Dynamic tight scale to show thermal movement clearly
     day_window_data = df_day[(df_day.index >= t_start) & (df_day.index <= t_end)]
     if not day_window_data.empty:
         t_min = float(day_window_data['predictive_room_temperature_C'].min())
@@ -589,7 +604,7 @@ with chart_col2:
 
 st.markdown("<div style='margin-bottom: 22px;'></div>", unsafe_allow_html=True)
 
-# --- 8. BOTTOM ROW: DEVICE STATUS & OCCUPANCY (SCALE 0-8) ---
+# --- 8. BOTTOM ROW: DEVICE STATUS & OCCUPANCY PREDICTION ERROR REALISATION ---
 bot_col1, bot_col2 = st.columns([1.1, 1.9])
 
 with bot_col1:
@@ -625,45 +640,94 @@ with bot_col1:
     st.markdown(table_html, unsafe_allow_html=True)
 
 with bot_col2:
-    st.markdown("<div class='card-top-title' style='margin-bottom: 12px;'>👥 Occupancy Tracking & Prediction</div>", unsafe_allow_html=True)
-    fig_occ = go.Figure()
+    st.markdown("<div class='card-top-title' style='margin-bottom: 12px;'>👥 Occupancy Forecast & Numerical Error Realisation</div>", unsafe_allow_html=True)
     
-    # Calculate tight upper bound for people headcount
+    # Dual-row sub-plot: Trajectory (Row 1) & Exact Numerical Error Deltas (Row 2)
+    fig_occ = make_subplots(
+        rows=2, cols=1, 
+        shared_xaxes=True, 
+        vertical_spacing=0.14,
+        row_heights=[0.68, 0.32],
+        subplot_titles=(
+            f"Occupancy Trajectory (Live Realisation Error: {error_badge})", 
+            f"Realisation Error Value: Forecast − Actual Realised [MAE: {mae_today:.2f} | RMSE: {rmse_today:.2f}]"
+        )
+    )
+    
+    # 1. 15-Minute Forecast curve (Orange dashed)
+    fig_occ.add_trace(go.Scatter(
+        x=df_live.index, y=df_live['occupancy_forecast_15min'],
+        mode='lines', name='15m Forecast Model',
+        line=dict(color='#f97316', width=3.5, dash='dash')
+    ), row=1, col=1)
+    
+    # 2. Actual Realised (15 min later) (Green dotted)
+    if 'occupancy_actual_15min_later' in df_live.columns:
+        fig_occ.add_trace(go.Scatter(
+            x=df_live.index, y=df_live['occupancy_actual_15min_later'],
+            mode='lines', name='Actual Realised (15m Later)',
+            line=dict(color='#16a34a', width=2.5, dash='dot')
+        ), row=1, col=1)
+        
+    # 3. Current Headcount (Solid Blue)
+    fig_occ.add_trace(go.Scatter(
+        x=df_live.index, y=df_live['occupancy_now'],
+        mode='lines', name='Actual Headcount (Now)',
+        line=dict(color='#0284c7', width=4)
+    ), row=1, col=1)
+    
+    # 4. Instantaneous Error Delta with Numerical Text Labels (Row 2)
+    if 'occupancy_actual_15min_later' in df_live.columns:
+        err_delta = (df_live['occupancy_forecast_15min'] - df_live['occupancy_actual_15min_later']).fillna(0).astype(int)
+        
+        # Color coding: Red (+Over), Purple (-Under), Green (0 Exact Match)
+        bar_colors = np.where(err_delta > 0, '#ef4444', np.where(err_delta < 0, '#a855f7', '#22c55e'))
+        
+        # Format text strings so labels are visible on the bars
+        text_labels = [f"+{val}" if val > 0 else str(val) for val in err_delta]
+
+        fig_occ.add_trace(go.Bar(
+            x=df_live.index, 
+            y=err_delta,
+            name='Error Value (People)',
+            text=text_labels,
+            textposition='auto',
+            textfont=dict(size=12, color='#ffffff'),
+            marker_color=bar_colors,
+            width=1000 * 60 * 4
+        ), row=2, col=1)
+        
+        # Zero baseline line
+        fig_occ.add_hline(y=0.0, line_dash="solid", line_color="#64748b", line_width=1.5, row=2, col=1)
+
+    # Vertical current-time line
+    fig_occ.add_vline(x=datetime.combine(selected_date, active_time), line_width=2.5, line_color="#ef4444")
+
+    # Dynamic upper bound for headcount
     max_occ_day = max(day_window_data['occupancy_now'].max(), day_window_data['occupancy_forecast_15min'].max())
     y_upper = max(8, int(max_occ_day) + 2) if pd.notna(max_occ_day) else 8
 
-    # Predicted Occupancy (+15 min) (Orange dashed)
-    fig_occ.add_trace(go.Scatter(
-        x=df_live.index, y=df_live['occupancy_forecast_15min'],
-        mode='lines', name='Predicted Occupancy (+15 min)',
-        line=dict(color='#f97316', width=4, dash='dash')
-    ))
-    
-    # Actual Occupancy (Solid Blue)
-    fig_occ.add_trace(go.Scatter(
-        x=df_live.index, y=df_live['occupancy_now'],
-        mode='lines', name='Actual Occupancy',
-        line=dict(color='#0284c7', width=4.5)
-    ))
-    
-    fig_occ.add_vline(x=datetime.combine(selected_date, active_time), line_width=2.5, line_color="#ef4444")
-
     fig_occ.update_layout(
-        height=400,
-        margin=dict(l=25, r=25, t=10, b=25),
-        xaxis_title="", yaxis_title="People",
+        height=450,
+        margin=dict(l=25, r=25, t=25, b=25),
         plot_bgcolor="#ffffff", paper_bgcolor="#ffffff",
-        font=dict(color="#334155", size=15),
-        xaxis=dict(showgrid=True, gridcolor="#f1f5f9", tickfont=dict(size=14), range=[t_start, t_end]),
-        yaxis=dict(
-            showgrid=True, 
-            gridcolor="#f1f5f9", 
-            tickfont=dict(size=14), 
-            range=[0, y_upper],
-            dtick=1
-        ),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=14))
+        font=dict(color="#334155", size=13),
+        legend=dict(orientation="h", yanchor="bottom", y=1.04, xanchor="right", x=1, font=dict(size=13))
     )
+    
+    fig_occ.update_xaxes(
+        showgrid=True, gridcolor="#f1f5f9", tickfont=dict(size=13), 
+        range=[t_start, t_end], row=2, col=1
+    )
+    fig_occ.update_yaxes(
+        title="People", showgrid=True, gridcolor="#f1f5f9", 
+        tickfont=dict(size=13), range=[0, y_upper], dtick=1, row=1, col=1
+    )
+    fig_occ.update_yaxes(
+        title="Error Value", showgrid=True, gridcolor="#f1f5f9", 
+        tickfont=dict(size=12), range=[-4.0, 4.0], dtick=1, row=2, col=1
+    )
+    
     st.plotly_chart(fig_occ, use_container_width=True)
 
 # Bottom spacing to keep the auto-scroll loop smooth on all TV resolutions
