@@ -596,12 +596,13 @@ with kpi_col5:
 
 st.markdown("<div style='margin-bottom: 22px;'></div>", unsafe_allow_html=True)
 
-# --- 7. MAIN BODY: 2-COLUMN BALANCED GRAPH SECTION (DARK PLOTLY) ---
+# --- 7. MAIN BODY: 2-COLUMN BALANCED GRAPH SECTION (WITH CRISP WHITE LEGENDS) ---
 grid_left, grid_right = st.columns([1.0, 1.0])
 
 DARK_CHART_BG = "#111827"
 DARK_GRID_COLOR = "#1f2937"
 DARK_TEXT_COLOR = "#cbd5e1"
+LEGEND_WHITE_TEXT = "#f8fafc"
 
 # Left Column: Occupancy Tracking & 15 Minute Ahead Forecast
 with grid_left:
@@ -630,9 +631,19 @@ with grid_left:
         xaxis_title="", yaxis_title="People",
         plot_bgcolor=DARK_CHART_BG, paper_bgcolor=DARK_CHART_BG,
         font=dict(color=DARK_TEXT_COLOR, size=14),
-        xaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=13), range=[t_start, t_end]),
-        yaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=13), range=[0, y_upper], dtick=1),
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=13))
+        xaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=13, color=DARK_TEXT_COLOR), range=[t_start, t_end]),
+        yaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=13, color=DARK_TEXT_COLOR), range=[0, y_upper], dtick=1),
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="right",
+            x=1,
+            font=dict(size=13, color=LEGEND_WHITE_TEXT),
+            bgcolor="rgba(17, 24, 39, 0.85)",
+            bordercolor="#374151",
+            borderwidth=1
+        )
     )
     st.plotly_chart(fig_occ, use_container_width=True)
 
@@ -674,9 +685,19 @@ with grid_right:
             yaxis_title="Cumulative Energy (kWh)",
             plot_bgcolor=DARK_CHART_BG, paper_bgcolor=DARK_CHART_BG,
             font=dict(color=DARK_TEXT_COLOR, size=14),
-            xaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=12)),
-            yaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=13), range=[0.0, y_max], zeroline=False),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=12))
+            xaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=12, color=DARK_TEXT_COLOR)),
+            yaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=13, color=DARK_TEXT_COLOR), range=[0.0, y_max], zeroline=False),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+                font=dict(size=12, color=LEGEND_WHITE_TEXT),
+                bgcolor="rgba(17, 24, 39, 0.85)",
+                bordercolor="#374151",
+                borderwidth=1
+            )
         )
         st.plotly_chart(fig_energy, use_container_width=True)
     else:
@@ -725,7 +746,7 @@ with grid_right:
             xaxis_title="", 
             plot_bgcolor=DARK_CHART_BG, paper_bgcolor=DARK_CHART_BG,
             font=dict(color=DARK_TEXT_COLOR, size=14),
-            xaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=13), range=[t_start, t_end]),
+            xaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=13, color=DARK_TEXT_COLOR), range=[t_start, t_end]),
             yaxis=dict(
                 title="Power Demand (kW)",
                 showgrid=True, 
@@ -743,7 +764,17 @@ with grid_right:
                 range=[0.0, y_energy_cum_upper],
                 zeroline=False
             ),
-            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1, font=dict(size=12))
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+                font=dict(size=12, color=LEGEND_WHITE_TEXT),
+                bgcolor="rgba(17, 24, 39, 0.85)",
+                bordercolor="#374151",
+                borderwidth=1
+            )
         )
         st.plotly_chart(fig_energy, use_container_width=True)
 
