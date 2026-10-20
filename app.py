@@ -860,4 +860,4 @@ with grid_right:
         st.plotly_chart(fig_energy, use_container_width=True)
 
 # Bottom spacing to keep the auto-scroll loop smooth on all TV resolutions
-st.markdown("<div style='height: 120px;'></div>", unsafe_allow_html=True
+st.markdown("<div style='height: 120px;'></div>", unsafe_allow_html=True)
