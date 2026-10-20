@@ -22,10 +22,10 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    /* 1. Base App & Canvas: True Black */
+     /* 1. Base App & Canvas: White */
     .stApp, [data-testid="stAppViewContainer"], .main {
-        background-color: #000000 !important;
-        color: #f8fafc !important;
+        background-color: #ffffff !important;
+        color: #0f172a !important;   /* dark slate for readability */
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     
