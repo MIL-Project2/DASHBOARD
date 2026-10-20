@@ -491,6 +491,7 @@ gauge_deg = int((gauge_pct / 100.0) * 360)
 DARK_CHART_BG = "#111827"
 DARK_GRID_COLOR = "#1f2937"
 DARK_TEXT_COLOR = "#cbd5e1"
+TEXT_COLOR = DARK_TEXT_COLOR
 LEGEND_WHITE_TEXT = "#f8fafc"
 CHART_HEIGHT = 270
 
@@ -842,7 +843,7 @@ else:
         margin=dict(l=25, r=25, t=10, b=20),
         xaxis_title="", 
         plot_bgcolor=DARK_CHART_BG, paper_bgcolor=DARK_CHART_BG,
-        font=dict(color=TEXT_COLOR, size=12),
+        font=dict(color=DARK_TEXT_COLOR, size=12),
         xaxis=dict(showgrid=True, gridcolor=DARK_GRID_COLOR, tickfont=dict(size=11, color=DARK_TEXT_COLOR), range=[t_start, t_end]),
         yaxis=dict(
             title="Power Demand (kW)",
@@ -857,7 +858,7 @@ else:
             overlaying='y',
             side='right',
             showgrid=False,
-            tickfont=dict(size=11, color='#ea580c'),
+            tickfont=dict(size=11, color='#fb923c'),
             range=[0.0, y_energy_cum_upper],
             zeroline=False
         ),
