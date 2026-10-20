@@ -601,7 +601,7 @@ with kpi_col4:
             <div class="metric-main-val" style="color: #38bdf8; font-size: 34px; margin: 2px 0;">
                 {cur_power:.2f}
             </div>
-            <div class="metric-sub-unit" style="font-size: 11px; font-weight: 700; color: #64748b;">kW active load</div>
+            <div class="metric-sub-unit" style="font-size: 11px; font-weight: 700; color: #64748b;">kW</div>
         </div>
         <div style="height: 2px;"></div>
     </div>
@@ -623,7 +623,7 @@ with kpi_col5:
                 </div>
                 <div style="border-left: 1.5px solid #2d3b55; height: 50px;"></div>
                 <div style="background-color: #162032; border: 1.5px solid #2d3b55; border-radius: 12px; padding: 8px 10px; flex: 1;">
-                    <div class="metric-label-muted" style="font-size: 10.5px;">Baseline</div>
+                    <div class="metric-label-muted" style="font-size: 10.5px;">Scheduled</div>
                     <div style="font-size: 26px; font-weight: 900; color: #fb923c; line-height: 1.05; margin-top: 2px;">
                         {disp_sched:.2f}
                     </div>
@@ -807,13 +807,13 @@ else:
     # 1. Non-Cumulative Power Demand (Left Y-Axis, kW)
     fig_energy.add_trace(go.Scatter(
         x=df_live_plot.index, y=df_live_plot['scheduled_hvac_power_kW'],
-        mode='lines', name='Baseline Power (kW)',
-        line=dict(color='#fdba74', width=2, dash='dot'),
+        mode='lines', name='Scheduled Mode_Power (kW)',
+        line=dict(color='#22c55e', width=2, dash='dot'),
         yaxis='y'
     ))
     fig_energy.add_trace(go.Scatter(
         x=df_live_plot.index, y=df_live_plot['predictive_hvac_power_kW'],
-        mode='lines', name='Predictive Power (kW)',
+        mode='lines', name='Predictive Mode_Power (kW)',
         line=dict(color='#7dd3fc', width=2.5),
         fill='tozeroy', fillcolor='rgba(125, 211, 252, 0.15)',
         yaxis='y'
@@ -822,13 +822,13 @@ else:
     # 2. Cumulative Energy Consumed Since 08:00 AM (Right Y-Axis, kWh)
     fig_energy.add_trace(go.Scatter(
         x=df_live_plot.index, y=df_live_plot['sched_energy_cum_day'],
-        mode='lines', name='Baseline Cumulative (kWh)',
-        line=dict(color='#ea580c', width=3.2, dash='dash'),
+        mode='lines', name='Scheduled Mode_Cum. Energy (kWh)',
+        line=dict(color='#ef4444', width=3.2, dash='dash'),
         yaxis='y2'
     ))
     fig_energy.add_trace(go.Scatter(
         x=df_live_plot.index, y=df_live_plot['pred_energy_cum_day'],
-        mode='lines', name='Predictive Cumulative (kWh)',
+        mode='lines', name='Predictive Mode_Cum. Energy (kWh)',
         line=dict(color='#38bdf8', width=3.8),
         yaxis='y2'
     ))
