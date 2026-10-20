@@ -808,7 +808,7 @@ else:
     fig_energy.add_trace(go.Scatter(
         x=df_live_plot.index, y=df_live_plot['scheduled_hvac_power_kW'],
         mode='lines', name='Scheduled Mode_Power (kW)',
-        line=dict(color='#22c55e', width=2, dash='dot'),
+        line=dict(color='#fdba74', width=2, dash='dot'),
         yaxis='y'
     ))
     fig_energy.add_trace(go.Scatter(
@@ -829,7 +829,7 @@ else:
     fig_energy.add_trace(go.Scatter(
         x=df_live_plot.index, y=df_live_plot['pred_energy_cum_day'],
         mode='lines', name='Predictive Mode_Cum. Energy (kWh)',
-        line=dict(color='#38bdf8', width=3.8),
+        line=dict(color='#22c55e', width=3.8),
         yaxis='y2'
     ))
     
